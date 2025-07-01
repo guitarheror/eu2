@@ -1,134 +1,53 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Minha Vida Organizada</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 20px;
-    }
-    h1, h2 {
-      color: #333;
-    }
-    .section {
-      background: #fff;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .horario {
-      font-weight: bold;
-      margin-right: 10px;
-      width: 130px;
-    }
-    .atividade {
-      flex-grow: 1;
-    }
-    button {
-      margin-left: 10px;
-    }
-    input[type="text"], input[type="time"] {
-      padding: 5px;
-      margin-right: 5px;
-    }
-  </style>
-</head>
-<body>
+<script>
+let rotina = [];
 
-  <h1>🧠 Minha Vida Organizada</h1>
+function renderRotina() {
+  const container = document.getElementById('rotinaLista');
+  container.innerHTML = '';
 
-  <div class="section">
-    <h2>🕒 Rotina Diária (com horário)</h2>
-    <input type="time" id="inicioInput" />
-    <input type="time" id="fimInput" />
-    <input type="text" id="atividadeInput" placeholder="Atividade..." />
-    <button onclick="addRotina()">Adicionar</button>
-    <ul id="rotinaLista"></ul>
-  </div>
+  rotina.forEach((item, index) => {
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'agenda-time';
+    timeDiv.textContent = `${item.inicio} - ${item.fim}`;
 
-  <div class="section">
-    <h2>✅ Metas do Dia</h2>
-    <input type="text" id="metaInput" placeholder="Adicionar meta do dia..." />
-    <button onclick="addMeta()">Adicionar</button>
-    <ul id="metaLista"></ul>
-  </div>
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'agenda-content';
 
-  <script>
-    let rotina = [];
+    const title = document.createElement('div');
+    title.textContent = item.atividade;
 
-    function addRotina() {
-      const inicio = document.getElementById('inicioInput').value;
-      const fim = document.getElementById('fimInput').value;
-      const atividade = document.getElementById('atividadeInput').value.trim();
+    const desc = document.createElement('div');
+    desc.className = 'descricao';
+    desc.textContent = item.descricao;
 
-      if (inicio && fim && atividade) {
-        rotina.push({ inicio, fim, atividade });
-        rotina.sort((a, b) => a.inicio.localeCompare(b.inicio)); // organiza por hora
+    const btnDesc = document.createElement('button');
+    btnDesc.className = 'minimal-btn';
+    btnDesc.textContent = '✏️';
+    btnDesc.title = 'Adicionar descrição';
+    btnDesc.onclick = () => {
+      const novaDesc = prompt('Descrição para esta atividade:', item.descricao);
+      if (novaDesc !== null) {
+        item.descricao = novaDesc;
         renderRotina();
-        document.getElementById('inicioInput').value = '';
-        document.getElementById('fimInput').value = '';
-        document.getElementById('atividadeInput').value = '';
       }
-    }
+    };
 
-    function renderRotina() {
-      const lista = document.getElementById('rotinaLista');
-      lista.innerHTML = '';
-      rotina.forEach((item, index) => {
-        const li = document.createElement('li');
-        const horario = document.createElement('div');
-        horario.className = 'horario';
-        horario.textContent = `${item.inicio} - ${item.fim}`;
-        const atividade = document.createElement('div');
-        atividade.className = 'atividade';
-        atividade.textContent = item.atividade;
-        const btn = document.createElement('button');
-        btn.textContent = 'Remover';
-        btn.onclick = () => {
-          rotina.splice(index, 1);
-          renderRotina();
-        };
-        li.appendChild(horario);
-        li.appendChild(atividade);
-        li.appendChild(btn);
-        lista.appendChild(li);
-      });
-    }
+    const btnRemover = document.createElement('button');
+    btnRemover.className = 'minimal-btn';
+    btnRemover.textContent = '🗑️';
+    btnRemover.title = 'Remover';
+    btnRemover.onclick = () => {
+      rotina.splice(index, 1);
+      renderRotina();
+    };
 
-    function addMeta() {
-      const input = document.getElementById('metaInput');
-      const texto = input.value.trim();
-      if (texto) {
-        const li = document.createElement('li');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.style.marginRight = '10px';
-        li.appendChild(checkbox);
-        li.appendChild(document.createTextNode(texto));
-        const btn = document.createElement('button');
-        btn.textContent = 'Remover';
-        btn.onclick = () => li.remove();
-        li.appendChild(btn);
-        document.getElementById('metaLista').appendChild(li);
-        input.value = '';
-      }
-    }
-  </script>
+    contentDiv.appendChild(title);
+    if (item.descricao) contentDiv.appendChild(desc);
+    contentDiv.appendChild(btnDesc);
+    contentDiv.appendChild(btnRemover);
 
-</body>
-</html>
+    container.appendChild(timeDiv);
+    container.appendChild(contentDiv);
+  });
+}
+</script>
