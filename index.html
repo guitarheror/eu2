@@ -28,14 +28,23 @@
     li {
       margin-bottom: 10px;
       display: flex;
+      justify-content: space-between;
       align-items: center;
+    }
+    .horario {
+      font-weight: bold;
+      margin-right: 10px;
+      width: 130px;
+    }
+    .atividade {
+      flex-grow: 1;
     }
     button {
       margin-left: 10px;
     }
-    input[type="text"] {
+    input[type="text"], input[type="time"] {
       padding: 5px;
-      width: 70%;
+      margin-right: 5px;
     }
   </style>
 </head>
@@ -44,8 +53,10 @@
   <h1>🧠 Minha Vida Organizada</h1>
 
   <div class="section">
-    <h2>🕒 Rotina Diária</h2>
-    <input type="text" id="rotinaInput" placeholder="Adicionar item da rotina..." />
+    <h2>🕒 Rotina Diária (com horário)</h2>
+    <input type="time" id="inicioInput" />
+    <input type="time" id="fimInput" />
+    <input type="text" id="atividadeInput" placeholder="Atividade..." />
     <button onclick="addRotina()">Adicionar</button>
     <ul id="rotinaLista"></ul>
   </div>
@@ -58,19 +69,45 @@
   </div>
 
   <script>
+    let rotina = [];
+
     function addRotina() {
-      const input = document.getElementById('rotinaInput');
-      const texto = input.value.trim();
-      if (texto) {
+      const inicio = document.getElementById('inicioInput').value;
+      const fim = document.getElementById('fimInput').value;
+      const atividade = document.getElementById('atividadeInput').value.trim();
+
+      if (inicio && fim && atividade) {
+        rotina.push({ inicio, fim, atividade });
+        rotina.sort((a, b) => a.inicio.localeCompare(b.inicio)); // organiza por hora
+        renderRotina();
+        document.getElementById('inicioInput').value = '';
+        document.getElementById('fimInput').value = '';
+        document.getElementById('atividadeInput').value = '';
+      }
+    }
+
+    function renderRotina() {
+      const lista = document.getElementById('rotinaLista');
+      lista.innerHTML = '';
+      rotina.forEach((item, index) => {
         const li = document.createElement('li');
-        li.textContent = texto;
+        const horario = document.createElement('div');
+        horario.className = 'horario';
+        horario.textContent = `${item.inicio} - ${item.fim}`;
+        const atividade = document.createElement('div');
+        atividade.className = 'atividade';
+        atividade.textContent = item.atividade;
         const btn = document.createElement('button');
         btn.textContent = 'Remover';
-        btn.onclick = () => li.remove();
+        btn.onclick = () => {
+          rotina.splice(index, 1);
+          renderRotina();
+        };
+        li.appendChild(horario);
+        li.appendChild(atividade);
         li.appendChild(btn);
-        document.getElementById('rotinaLista').appendChild(li);
-        input.value = '';
-      }
+        lista.appendChild(li);
+      });
     }
 
     function addMeta() {
