@@ -1,53 +1,282 @@
-<script>
-let rotina = [];
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minha Vida Organizada</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f4;
+    }
+    header {
+      background: #333;
+      color: white;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+    header button {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .tab {
+      display: none;
+      padding: 20px;
+    }
+    .active {
+      display: block;
+    }
+    .section {
+      background: white;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .agenda-grid {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 10px;
+    }
+    .agenda-time {
+      font-weight: bold;
+      text-align: right;
+    }
+    .agenda-content {
+      background: #e0f7fa;
+      padding: 5px;
+      border-radius: 5px;
+      position: relative;
+    }
+    .minimal-btn {
+      background: none;
+      border: none;
+      color: #555;
+      font-size: 14px;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    .descricao {
+      font-size: 12px;
+      color: #444;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button onclick="showTab('agenda')">🗓️ Agenda Diária</button>
+    <button onclick="showTab('metas')">✅ Metas do Dia</button>
+    <button onclick="showTab('calendario')">📅 Calendário</button>
+  </header>
 
-function renderRotina() {
-  const container = document.getElementById('rotinaLista');
-  container.innerHTML = '';
+  <div id="agenda" class="tab active">
+    <div class="section">
+      <h2>Agenda Diária</h2>
+      <input type="time" id="inicioInput">
+      <input type="time" id="fimInput">
+      <input type="text" id="atividadeInput" placeholder="Atividade...">
+      <button onclick="addRotina()">Adicionar</button>
+      <div class="agenda-grid" id="rotinaLista"></div>
+    </div>
+  </div>
 
-  rotina.forEach((item, index) => {
-    const timeDiv = document.createElement('div');
-    timeDiv.className = 'agenda-time';
-    timeDiv.textContent = `${item.inicio} - ${item.fim}`;
+  <div id="metas" class="tab">
+    <div class="section">
+      <h2>Metas do Dia</h2>
+      <input type="text" id="metaInput" placeholder="Adicionar meta do dia...">
+      <button onclick="addMeta()">Adicionar</button>
+      <ul id="metaLista"></ul>
+    </div>
+  </div>
 
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'agenda-content';
+  <div id="calendario" class="tab">
+    <div class="section">
+      <h2>Calendário Mensal</h2>
+      <div id="mesAtual"></div>
+      <div class="calendar" id="calendarGrid"></div>
+    </div>
+  </div>
 
-    const title = document.createElement('div');
-    title.textContent = item.atividade;
+  <script>
+    let rotina = [];
+    let eventos = {};
+    let diaSelecionado = '';
 
-    const desc = document.createElement('div');
-    desc.className = 'descricao';
-    desc.textContent = item.descricao;
+    function showTab(id) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
 
-    const btnDesc = document.createElement('button');
-    btnDesc.className = 'minimal-btn';
-    btnDesc.textContent = '✏️';
-    btnDesc.title = 'Adicionar descrição';
-    btnDesc.onclick = () => {
-      const novaDesc = prompt('Descrição para esta atividade:', item.descricao);
-      if (novaDesc !== null) {
-        item.descricao = novaDesc;
+    function addRotina() {
+      const inicio = document.getElementById('inicioInput').value;
+      const fim = document.getElementById('fimInput').value;
+      const atividade = document.getElementById('atividadeInput').value.trim();
+
+      if (inicio && fim && atividade) {
+        rotina.push({ inicio, fim, atividade, descricao: '' });
+        rotina.sort((a, b) => a.inicio.localeCompare(b.inicio));
         renderRotina();
+        document.getElementById('inicioInput').value = '';
+        document.getElementById('fimInput').value = '';
+        document.getElementById('atividadeInput').value = '';
       }
-    };
+    }
 
-    const btnRemover = document.createElement('button');
-    btnRemover.className = 'minimal-btn';
-    btnRemover.textContent = '🗑️';
-    btnRemover.title = 'Remover';
-    btnRemover.onclick = () => {
-      rotina.splice(index, 1);
-      renderRotina();
-    };
+    function renderRotina() {
+      const container = document.getElementById('rotinaLista');
+      container.innerHTML = '';
 
-    contentDiv.appendChild(title);
-    if (item.descricao) contentDiv.appendChild(desc);
-    contentDiv.appendChild(btnDesc);
-    contentDiv.appendChild(btnRemover);
+      rotina.forEach((item, index) => {
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'agenda-time';
+        timeDiv.textContent = `${item.inicio} - ${item.fim}`;
 
-    container.appendChild(timeDiv);
-    container.appendChild(contentDiv);
-  });
-}
-</script>
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'agenda-content';
+
+        const title = document.createElement('div');
+        title.textContent = item.atividade;
+
+        const desc = document.createElement('div');
+        desc.className = 'descricao';
+        desc.textContent = item.descricao;
+
+        const btnDesc = document.createElement('button');
+        btnDesc.className = 'minimal-btn';
+        btnDesc.textContent = '✏️';
+        btnDesc.title = 'Adicionar descrição';
+        btnDesc.onclick = () => {
+          const novaDesc = prompt('Descrição para esta atividade:', item.descricao);
+          if (novaDesc !== null) {
+            item.descricao = novaDesc;
+            renderRotina();
+          }
+        };
+
+        const btnRemover = document.createElement('button');
+        btnRemover.className = 'minimal-btn';
+        btnRemover.textContent = '🗑️';
+        btnRemover.title = 'Remover';
+        btnRemover.onclick = () => {
+          rotina.splice(index, 1);
+          renderRotina();
+        };
+
+        contentDiv.appendChild(title);
+        if (item.descricao) contentDiv.appendChild(desc);
+        contentDiv.appendChild(btnDesc);
+        contentDiv.appendChild(btnRemover);
+
+        container.appendChild(timeDiv);
+        container.appendChild(contentDiv);
+      });
+    }
+
+    function addMeta() {
+      const input = document.getElementById('metaInput');
+      const texto = input.value.trim();
+      if (texto) {
+        const li = document.createElement('li');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.style.marginRight = '10px';
+        li.appendChild(checkbox);
+        li.appendChild(document.createTextNode(texto));
+        const btn = document.createElement('button');
+        btn.textContent = 'Remover';
+        btn.onclick = () => li.remove();
+        li.appendChild(btn);
+        document.getElementById('metaLista').appendChild(li);
+        input.value = '';
+      }
+    }
+
+    function gerarCalendario() {
+      const hoje = new Date();
+      const ano = hoje.getFullYear();
+      const mes = hoje.getMonth();
+      const primeiroDia = new Date(ano, mes, 1);
+      const ultimoDia = new Date(ano, mes + 1, 0);
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+      document.getElementById('mesAtual').textContent = hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+      for (let i = 0; i < primeiroDia.getDay(); i++) {
+        const vazio = document.createElement('div');
+        grid.appendChild(vazio);
+      }
+
+      for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
+        const dataStr = `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+        const cell = document.createElement('div');
+        cell.className = 'day';
+        cell.textContent = dia;
+        cell.onclick = () => abrirModal(dataStr);
+
+        const eventosDia = eventos[dataStr] || [];
+        if (eventosDia.length) {
+          const ul = document.createElement('ul');
+          ul.className = 'event-list';
+          eventosDia.forEach(e => {
+            const li = document.createElement('li');
+            li.textContent = '- ' + e;
+            ul.appendChild(li);
+          });
+          cell.appendChild(ul);
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    let modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '50%';
+    modal.style.left = '50%';
+    modal.style.transform = 'translate(-50%, -50%)';
+    modal.style.background = 'white';
+    modal.style.padding = '20px';
+    modal.style.border = '1px solid #ccc';
+    modal.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+      <h3 id="modalDia"></h3>
+      <input type="text" id="eventoInput" placeholder="Novo evento">
+      <button onclick="salvarEvento()">Salvar</button>
+      <button onclick="fecharModal()">Cancelar</button>
+    `;
+    document.body.appendChild(modal);
+
+    function abrirModal(data) {
+      diaSelecionado = data;
+      document.getElementById('modalDia').textContent = `Eventos em ${data}`;
+      document.getElementById('eventoInput').value = '';
+      modal.style.display = 'block';
+    }
+
+    function salvarEvento() {
+      const evento = document.getElementById('eventoInput').value.trim();
+      if (evento) {
+        if (!eventos[diaSelecionado]) eventos[diaSelecionado] = [];
+        eventos[diaSelecionado].push(evento);
+        fecharModal();
+        gerarCalendario();
+      }
+    }
+
+    function fecharModal() {
+      modal.style.display = 'none';
+    }
+
+    gerarCalendario();
+  </script>
+</body>
+</html>
