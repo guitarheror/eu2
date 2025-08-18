@@ -1,320 +1,408 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minha Vida Organizada</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f4f4f4;
-    }
-    header {
-      background: #333;
-      color: white;
-      padding: 10px;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-    }
-    header button {
-      background: transparent;
-      border: none;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    .tab {
-      display: none;
-      padding: 20px;
-    }
-    .active {
-      display: block;
-    }
-    .section {
-      background: white;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
-    }
-    .agenda-grid {
-      display: grid;
-      grid-template-columns: 80px 1fr;
-      gap: 10px;
-    }
-    .agenda-time {
-      font-weight: bold;
-      text-align: right;
-    }
-    .agenda-content {
-      background: #e0f7fa;
-      padding: 5px;
-      border-radius: 5px;
-      position: relative;
-    }
-    .minimal-btn {
-      background: none;
-      border: none;
-      color: #555;
-      font-size: 14px;
-      cursor: pointer;
-      margin-left: 8px;
-    }
-    .descricao {
-      font-size: 12px;
-      color: #444;
-      margin-top: 4px;
-    }
-    .calendar {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 5px;
-      margin-top: 10px;
-    }
-    .day {
-      background: white;
-      border: 1px solid #ccc;
-      height: 100px;
-      padding: 5px;
-      position: relative;
-      cursor: pointer;
-      overflow-y: auto;
-    }
-    .day:hover {
-      background: #f0f0f0;
-    }
-    .event-list {
-      font-size: 12px;
-      margin-top: 5px;
-    }
-    textarea.descricao-input {
-      width: 100%;
-      margin-top: 5px;
-      font-size: 12px;
-      border: 1px solid #aaa;
-      border-radius: 4px;
-      padding: 4px;
-      resize: vertical;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <button onclick="showTab('agenda')">🗓️ Agenda Diária</button>
-    <button onclick="showTab('metas')">✅ Metas do Dia</button>
-    <button onclick="showTab('calendario')">📅 Calendário</button>
-  </header>
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
-  <div id="agenda" class="tab active">
-    <div class="section">
-      <h2>Agenda Diária</h2>
-      <input type="time" id="inicioInput">
-      <input type="time" id="fimInput">
-      <input type="text" id="atividadeInput" placeholder="Atividade...">
-      <button onclick="addRotina()">Adicionar</button>
-      <div class="agenda-grid" id="rotinaLista"></div>
-    </div>
-  </div>
+// =============================
+// Utilidades
+// =============================
+function classNames(...args) {
+  return args.filter(Boolean).join(" ");
+}
 
-  <div id="metas" class="tab">
-    <div class="section">
-      <h2>Metas do Dia</h2>
-      <input type="text" id="metaInput" placeholder="Adicionar meta do dia...">
-      <button onclick="addMeta()">Adicionar</button>
-      <ul id="metaLista"></ul>
-    </div>
-  </div>
+const DEFAULT_TEXT = `Cole ou carregue um texto aqui, ou envie imagens/páginas para OCR.\n\nDicas:\n• Ajuste as palavras por minuto (WPM) no controle abaixo.\n• Escolha o tamanho do bloco (1–3 palavras).\n• Ative a pausa de pontuação para respiradas naturais.\n• Você pode colar capítulos inteiros do livro em TXT, ou usar OCR nas fotos.\n`;
 
-  <div id="calendario" class="tab">
-    <div class="section">
-      <h2>Calendário Mensal</h2>
-      <div id="mesAtual"></div>
-      <div class="calendar" id="calendarGrid"></div>
-    </div>
-  </div>
+// Tokenização simples em palavras/blocos
+function tokenizeToChunks(text, chunkSize = 1) {
+  // Substitui quebras múltiplas por espaço e normaliza
+  const cleaned = text
+    .replace(/[\r\t]+/g, " ")
+    .replace(/\n+/g, " \n ") // preserva quebras (para pausas mais longas se desejar)
+    .replace(/\s{2,}/g, " ")
+    .trim();
 
-  <script>
-    let rotina = [];
-    let eventos = {};
-    let diaSelecionado = '';
+  const words = cleaned.split(/\s+/);
+  const chunks = [];
+  for (let i = 0; i < words.length; i += chunkSize) {
+    const slice = words.slice(i, i + chunkSize);
+    chunks.push(slice.join(" "));
+  }
+  return chunks;
+}
 
-    function showTab(id) {
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
+function isSentenceEnd(token) {
+  return /[\.!?…]$/.test(token);
+}
+
+function isLineBreak(token) {
+  return token === "\\n" || /\\n/.test(token);
+}
+
+// =============================
+// Carregamento dinâmico de scripts (Tesseract.js e PDF.js)
+// =============================
+function useExternalScript(src) {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let el = document.querySelector(`script[src="${src}"]`);
+    if (!el) {
+      el = document.createElement("script");
+      el.src = src;
+      el.async = true;
+      el.onload = () => setLoaded(true);
+      el.onerror = () => setLoaded(false);
+      document.body.appendChild(el);
+    } else {
+      setLoaded(true);
     }
+    return () => {};
+  }, [src]);
+  return loaded;
+}
 
-    function addRotina() {
-      const inicio = document.getElementById('inicioInput').value;
-      const fim = document.getElementById('fimInput').value;
-      const atividade = document.getElementById('atividadeInput').value.trim();
+// =============================
+// Componente principal
+// =============================
+export default function App() {
+  const [rawText, setRawText] = useState(() => localStorage.getItem("sr_rawText") || DEFAULT_TEXT);
+  const [wpm, setWpm] = useState(() => Number(localStorage.getItem("sr_wpm")) || 300);
+  const [chunkSize, setChunkSize] = useState(() => Number(localStorage.getItem("sr_chunkSize")) || 1);
+  const [punctuationPause, setPunctuationPause] = useState(() => localStorage.getItem("sr_punctPause") === "true");
+  const [extraPauseMs, setExtraPauseMs] = useState(() => Number(localStorage.getItem("sr_extraPauseMs")) || 250);
 
-      if (inicio && fim && atividade) {
-        rotina.push({ inicio, fim, atividade, descricao: '' });
-        rotina.sort((a, b) => a.inicio.localeCompare(b.inicio));
-        renderRotina();
-        document.getElementById('inicioInput').value = '';
-        document.getElementById('fimInput').value = '';
-        document.getElementById('atividadeInput').value = '';
-      }
-    }
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [index, setIndex] = useState(0);
 
-    function renderRotina() {
-      const container = document.getElementById('rotinaLista');
-      container.innerHTML = '';
+  const chunks = useMemo(() => tokenizeToChunks(rawText, chunkSize), [rawText, chunkSize]);
 
-      rotina.forEach((item, index) => {
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'agenda-time';
-        timeDiv.textContent = `${item.inicio} - ${item.fim}`;
+  const baseIntervalMs = useMemo(() => {
+    // WPM = palavras por minuto. Para blocos de N palavras, a taxa de blocos por minuto = WPM / N.
+    const blocksPerMinute = Math.max(1, wpm / Math.max(1, chunkSize));
+    return Math.round(60000 / blocksPerMinute);
+  }, [wpm, chunkSize]);
 
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'agenda-content';
+  const timerRef = useRef(null);
 
-        const title = document.createElement('div');
-        title.textContent = item.atividade;
+  useEffect(() => {
+    localStorage.setItem("sr_rawText", rawText);
+  }, [rawText]);
+  useEffect(() => {
+    localStorage.setItem("sr_wpm", String(wpm));
+  }, [wpm]);
+  useEffect(() => {
+    localStorage.setItem("sr_chunkSize", String(chunkSize));
+  }, [chunkSize]);
+  useEffect(() => {
+    localStorage.setItem("sr_punctPause", String(punctuationPause));
+  }, [punctuationPause]);
+  useEffect(() => {
+    localStorage.setItem("sr_extraPauseMs", String(extraPauseMs));
+  }, [extraPauseMs]);
 
-        const desc = document.createElement('div');
-        desc.className = 'descricao';
-        desc.textContent = item.descricao;
+  // Player loop
+  useEffect(() => {
+    if (!isPlaying) return;
 
-        const textarea = document.createElement('textarea');
-        textarea.className = 'descricao-input';
-        textarea.placeholder = 'Digite a descrição...';
-        textarea.style.display = 'none';
-        textarea.value = item.descricao;
-        textarea.onchange = () => {
-          item.descricao = textarea.value;
-          renderRotina();
-        };
-
-        const btnDesc = document.createElement('button');
-        btnDesc.className = 'minimal-btn';
-        btnDesc.textContent = '✏️';
-        btnDesc.title = 'Adicionar descrição';
-        btnDesc.onclick = () => {
-          textarea.style.display = textarea.style.display === 'none' ? 'block' : 'none';
-        };
-
-        const btnRemover = document.createElement('button');
-        btnRemover.className = 'minimal-btn';
-        btnRemover.textContent = '🗑️';
-        btnRemover.title = 'Remover';
-        btnRemover.onclick = () => {
-          rotina.splice(index, 1);
-          renderRotina();
-        };
-
-        contentDiv.appendChild(title);
-        if (item.descricao) contentDiv.appendChild(desc);
-        contentDiv.appendChild(btnDesc);
-        contentDiv.appendChild(textarea);
-        contentDiv.appendChild(btnRemover);
-
-        container.appendChild(timeDiv);
-        container.appendChild(contentDiv);
+    function tick() {
+      setIndex((prev) => {
+        const next = prev + 1;
+        if (next >= chunks.length) {
+          return prev; // trava no final
+        }
+        return next;
       });
     }
 
-    function addMeta() {
-      const input = document.getElementById('metaInput');
-      const texto = input.value.trim();
-      if (texto) {
-        const li = document.createElement('li');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.style.marginRight = '10px';
-        li.appendChild(checkbox);
-        li.appendChild(document.createTextNode(texto));
-        const btn = document.createElement('button');
-        btn.textContent = 'Remover';
-        btn.onclick = () => li.remove();
-        li.appendChild(btn);
-        document.getElementById('metaLista').appendChild(li);
-        input.value = '';
-      }
+    let interval = baseIntervalMs;
+    const currentToken = chunks[index] || "";
+    if (punctuationPause && (isSentenceEnd(currentToken) || isLineBreak(currentToken))) {
+      interval += extraPauseMs;
     }
 
-    function gerarCalendario() {
-      const hoje = new Date();
-      const ano = hoje.getFullYear();
-      const mes = hoje.getMonth();
-      const primeiroDia = new Date(ano, mes, 1);
-      const ultimoDia = new Date(ano, mes + 1, 0);
-      const grid = document.getElementById('calendarGrid');
-      grid.innerHTML = '';
-      document.getElementById('mesAtual').textContent = hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    timerRef.current = setTimeout(tick, interval);
+    return () => clearTimeout(timerRef.current);
+  }, [isPlaying, index, chunks, baseIntervalMs, punctuationPause, extraPauseMs]);
 
-      for (let i = 0; i < primeiroDia.getDay(); i++) {
-        const vazio = document.createElement('div');
-        grid.appendChild(vazio);
-      }
+  function handlePlayPause() {
+    if (chunks.length === 0) return;
+    setIsPlaying((p) => !p);
+  }
+  function handleStop() {
+    setIsPlaying(false);
+    setIndex(0);
+  }
+  function handlePrev() {
+    setIndex((i) => Math.max(0, i - 1));
+  }
+  function handleNext() {
+    setIndex((i) => Math.min(chunks.length - 1, i + 1));
+  }
 
-      for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
-        const dataStr = `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-        const cell = document.createElement('div');
-        cell.className = 'day';
-        cell.innerHTML = `<strong>${dia}</strong>`;
-        cell.onclick = () => abrirModal(dataStr);
+  // =============================
+  // OCR – Imagens (Tesseract.js)
+  // =============================
+  const tesseractLoaded = useExternalScript("https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js");
+  const [ocrRunning, setOcrRunning] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
 
-        const eventosDia = eventos[dataStr] || [];
-        if (eventosDia.length) {
-          const ul = document.createElement('ul');
-          ul.className = 'event-list';
-          eventosDia.forEach(e => {
-            const li = document.createElement('li');
-            li.textContent = '- ' + e;
-            ul.appendChild(li);
-          });
-          cell.appendChild(ul);
+  async function runOCRonFiles(fileList) {
+    if (!window.Tesseract) return alert("Tesseract.js ainda não carregou. Aguarde alguns segundos e tente novamente.");
+    const { createWorker } = window.Tesseract;
+
+    setOcrRunning(true);
+    setOcrProgress(0);
+
+    const worker = await createWorker({
+      logger: (m) => {
+        if (m.status === "recognizing text" && m.progress != null) {
+          setOcrProgress(Math.round(m.progress * 100));
         }
-        grid.appendChild(cell);
-      }
+      },
+    });
+
+    await worker.loadLanguage("por+eng");
+    await worker.initialize("por+eng");
+
+    let combined = "";
+    // Processa sequencialmente para economizar memória
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      const imgURL = URL.createObjectURL(file);
+      const { data } = await worker.recognize(imgURL);
+      combined += "\n\n" + data.text;
+      URL.revokeObjectURL(imgURL);
     }
 
-    let modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.position = 'fixed';
-    modal.style.top = '50%';
-    modal.style.left = '50%';
-    modal.style.transform = 'translate(-50%, -50%)';
-    modal.style.background = 'white';
-    modal.style.padding = '20px';
-    modal.style.border = '1px solid #ccc';
-    modal.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
-    modal.style.display = 'none';
-    modal.innerHTML = `
-      <h3 id="modalDia"></h3>
-      <input type="text" id="eventoInput" placeholder="Novo evento">
-      <button onclick="salvarEvento()">Salvar</button>
-      <button onclick="fecharModal()">Cancelar</button>
-    `;
-    document.body.appendChild(modal);
+    await worker.terminate();
+    setRawText((prev) => (prev ? prev + "\n\n" + combined : combined));
+    setOcrRunning(false);
+    setOcrProgress(100);
+  }
 
-    function abrirModal(data) {
-      diaSelecionado = data;
-      document.getElementById('modalDia').textContent = `Eventos em ${data}`;
-      document.getElementById('eventoInput').value = '';
-      modal.style.display = 'block';
+  // =============================
+  // PDF – extração de texto (PDF.js)
+  // =============================
+  const pdfjsLoaded = useExternalScript("https://unpkg.com/pdfjs-dist@4.6.82/build/pdf.min.js");
+
+  async function extractTextFromPDF(file) {
+    if (!window.pdfjsLib) return alert("PDF.js ainda não carregou. Aguarde alguns segundos e tente novamente.");
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let out = "";
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const strings = content.items.map((it) => it.str);
+      out += strings.join(" ") + "\n\n";
     }
+    setRawText((prev) => (prev ? prev + "\n\n" + out : out));
+  }
 
-    function salvarEvento() {
-      const evento = document.getElementById('eventoInput').value.trim();
-      if (evento) {
-        if (!eventos[diaSelecionado]) eventos[diaSelecionado] = [];
-        eventos[diaSelecionado].push(evento);
-        fecharModal();
-        gerarCalendario();
-      }
-    }
+  // =============================
+  // Exportar / Importar sessão
+  // =============================
+  function downloadText() {
+    const blob = new Blob([rawText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "texto_leitura.txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
-    function fecharModal() {
-      modal.style.display = 'none';
-    }
+  function importTextFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => setRawText(String(reader.result || ""));
+    reader.readAsText(file, "utf-8");
+  }
 
-    gerarCalendario();
-  </script>
-</body>
-</html>
+  const progress = chunks.length > 0 ? Math.round(((index + 1) / chunks.length) * 100) : 0;
+
+  return (
+    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+      {/* Cabeçalho */}
+      <header className="sticky top-0 z-10 bg-white border-b border-neutral-200">
+        <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl font-semibold">Leitor Rápido (OCR + WPM)</h1>
+          <div className="text-xs text-neutral-500">Beta • tudo local, no seu navegador</div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-4 py-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Painel esquerdo: entrada de texto/arquivos */}
+        <section className="lg:col-span-2">
+          <div className="bg-white rounded-2xl shadow p-4 space-y-4">
+            <h2 className="text-lg font-medium">Fonte do texto</h2>
+
+            {/* Área de colagem */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Colar texto do livro</label>
+              <textarea
+                className="w-full h-40 rounded-xl border border-neutral-300 p-3 focus:outline-none focus:ring-2 focus:ring-neutral-800"
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                placeholder="Cole aqui o texto do seu livro (TXT, PDF extraído ou capturado por OCR)."
+              />
+              <div className="mt-2 flex items-center gap-2">
+                <button onClick={downloadText} className="px-3 py-1.5 rounded-lg border bg-neutral-900 text-white hover:opacity-90">Exportar TXT</button>
+                <label className="px-3 py-1.5 rounded-lg border cursor-pointer bg-white hover:bg-neutral-50">
+                  Importar TXT
+                  <input type="file" accept=".txt" className="hidden" onChange={(e) => e.target.files && importTextFile(e.target.files[0])} />
+                </label>
+              </div>
+            </div>
+
+            <div className="h-px bg-neutral-200" />
+
+            {/* PDF */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Carregar PDF (extrair texto)</label>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) extractTextFromPDF(f);
+                }}
+                className="w-full rounded-lg border border-neutral-300 p-2"
+              />
+              <p className="text-xs text-neutral-500 mt-1">{pdfjsLoaded ? "PDF.js carregado." : "Carregando suporte a PDF…"}</p>
+            </div>
+
+            <div className="h-px bg-neutral-200" />
+
+            {/* OCR de imagens */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Fotos / Imagens das páginas (OCR)</label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (files && files.length) runOCRonFiles(files);
+                }}
+                className="w-full rounded-lg border border-neutral-300 p-2"
+              />
+              <div className="text-xs text-neutral-500 mt-1 flex items-center justify-between">
+                <span>{tesseractLoaded ? "Tesseract.js carregado." : "Carregando OCR…"}</span>
+                {ocrRunning && (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="w-24 h-1 bg-neutral-200 rounded-full overflow-hidden">
+                      <span className="block h-full bg-neutral-900" style={{ width: `${ocrProgress}%` }} />
+                    </span>
+                    {ocrProgress}%
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Painel central: leitor */}
+        <section className="lg:col-span-3">
+          <div className="bg-white rounded-2xl shadow p-4 flex flex-col gap-4">
+            <h2 className="text-lg font-medium">Leitura</h2>
+
+            {/* Display da palavra/bloco */}
+            <div className="relative h-56 sm:h-64 md:h-72 lg:h-80 grid place-items-center bg-neutral-900 text-white rounded-xl">
+              <div className="text-3xl sm:text-5xl md:text-6xl font-semibold tracking-wide text-center px-6 select-none">
+                {chunks[index] || "–"}
+              </div>
+              {/* marca central ("pivot") */}
+              <div className="absolute inset-y-4 left-1/2 -translate-x-1/2 w-px bg-white/20" />
+            </div>
+
+            {/* Controles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <label className="block text-sm font-medium">Palavras por minuto (WPM): {wpm}</label>
+                <input
+                  type="range"
+                  min={100}
+                  max={1200}
+                  step={10}
+                  value={wpm}
+                  onChange={(e) => setWpm(Number(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setWpm((v) => Math.max(50, v - 50))} className="px-2 py-1 rounded-md border">-50</button>
+                  <button onClick={() => setWpm((v) => v + 50)} className="px-2 py-1 rounded-md border">+50</button>
+                  <button onClick={() => setWpm(300)} className="px-2 py-1 rounded-md border">Reset 300</button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium">Tamanho do bloco</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => {
+                        setChunkSize(n);
+                        setIndex(0);
+                      }}
+                      className={classNames(
+                        "px-3 py-1.5 rounded-lg border",
+                        chunkSize === n ? "bg-neutral-900 text-white" : "bg-white"
+                      )}
+                    >
+                      {n} palavra{n > 1 ? "s" : ""}
+                    </button>
+                  ))}
+                </div>
+
+                <label className="inline-flex items-center gap-2 mt-2">
+                  <input type="checkbox" checked={punctuationPause} onChange={(e) => setPunctuationPause(e.target.checked)} />
+                  <span className="text-sm">Pausa em pontuação (., !, ?)</span>
+                </label>
+                {punctuationPause && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-neutral-600">Extra (ms):</span>
+                    <input
+                      type="number"
+                      className="w-24 rounded-md border p-1"
+                      min={0}
+                      step={50}
+                      value={extraPauseMs}
+                      onChange={(e) => setExtraPauseMs(Number(e.target.value))}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Barra de progresso */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 bg-neutral-200 rounded-full overflow-hidden">
+                <div className="h-full bg-neutral-900" style={{ width: `${progress}%` }} />
+              </div>
+              <div className="w-16 text-right text-sm tabular-nums">{progress}%</div>
+            </div>
+
+            {/* Player controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={handlePrev} className="px-3 py-1.5 rounded-lg border">◀︎ Anterior</button>
+              <button
+                onClick={handlePlayPause}
+                className={classNames("px-3 py-1.5 rounded-lg border", isPlaying ? "bg-red-600 text-white" : "bg-neutral-900 text-white")}
+              >
+                {isPlaying ? "Pausar" : "Ler"}
+              </button>
+              <button onClick={handleNext} className="px-3 py-1.5 rounded-lg border">Próximo ▶︎</button>
+              <button onClick={handleStop} className="px-3 py-1.5 rounded-lg border">⏹️ Parar</button>
+              <div className="ml-auto text-sm text-neutral-600">{index + 1} / {chunks.length} blocos</div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="mx-auto max-w-5xl px-4 pb-10 text-xs text-neutral-500">
+        <div className="mt-6">
+          Feito para praticar leitura: suporte a TXT, PDF (extração) e imagens (OCR). Nada é enviado ao servidor.
+        </div>
+      </footer>
+    </div>
+  );
+}
