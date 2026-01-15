@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Infinito Simples</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Importante: esconde as barras de rolagem */
+            background-color: #f0f0f0;
+            font-family: sans-serif;
+        }
+
+        /* O Viewport é a nossa "janela" */
+        #viewport {
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+            position: relative;
+        }
+
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        /* O World é a "mesa gigante" que movemos */
+        #world {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            /* O ponto de origem da transformação (zoom) será o canto superior esquerdo (0,0) 
+               para facilitar o cálculo inicial, mas ajustamos via JS */
+            transform-origin: 0 0; 
+            
+            /* Criando um grid visual com CSS para referência */
+            background-size: 40px 40px;
+            background-image: radial-gradient(circle, #ccc 1px, transparent 1px);
+        }
+
+        /* Um elemento de exemplo dentro do mundo */
+        .card {
+            position: absolute;
+            top: 200px;
+            left: 300px;
+            width: 200px;
+            height: 150px;
+            background: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 20px;
+            user-select: none; /* Evita selecionar o texto enquanto arrasta */
+        }
+        
+        h2 { margin-top: 0; color: #333; }
+    </style>
+</head>
+<body>
+
+    <div id="viewport">
+        <div id="world">
+            <div class="card">
+                <h2>Olá!</h2>
+                <p>Eu estou num canvas infinito. Tente me arrastar ou dar zoom.</p>
+            </div>
+            
+            <div class="card" style="top: 500px; left: 600px; background: #ffeb3b;">
+                <h2>Outro Card</h2>
+                <p>Estou longe!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const viewport = document.getElementById('viewport');
+        const world = document.getElementById('world');
+
+        // Estado do nosso Canvas
+        let state = {
+            scale: 1,
+            panning: false,
+            pointX: 0,
+            pointY: 0,
+            startX: 0,
+            startY: 0
+        };
+
+        // Função para aplicar as transformações CSS
+        function updateTransform() {
+            // A mágica acontece aqui: Translate (mover) e Scale (zoom)
+            world.style.transform = `translate(${state.pointX}px, ${state.pointY}px) scale(${state.scale})`;
+        }
+
+        // 1. ZOOM (Roda do Mouse)
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+
+            const xs = (e.clientX - state.pointX) / state.scale;
+            const ys = (e.clientY - state.pointY) / state.scale;
+            
+            const delta = -Math.sign(e.deltaY);
+            // Define o passo do zoom (10% por vez)
+            const step = 0.1; 
+            
+            // Calcula o novo zoom, limitando entre 0.1x e 5x
+            const oldScale = state.scale;
+            let newScale = oldScale + (delta * step);
+            newScale = Math.min(Math.max(0.1, newScale), 5);
+
+            // Ajusta a posição para o zoom focar onde o mouse está
+            state.pointX -= xs * (newScale - oldScale);
+            state.pointY -= ys * (newScale - oldScale);
+            state.scale = newScale;
+
+            updateTransform();
+        }, { passive: false });
+
+        // 2. PAN (Arrastar o fundo)
+        viewport.addEventListener('mousedown', (e) => {
+            // Apenas inicia o arrasto se clicar direto no fundo ou no grid
+            if (e.target === viewport || e.target === world) {
+                state.panning = true;
+                state.startX = e.clientX - state.pointX;
+                state.startY = e.clientY - state.pointY;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!state.panning) return;
+            e.preventDefault();
+            
+            state.pointX = e.clientX - state.startX;
+            state.pointY = e.clientY - state.startY;
+            
+            updateTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            state.panning = false;
+        });
+
+    </script>
+</body>
+</html>
