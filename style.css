@@ -1,52 +1,78 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f4f7f6;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    background-color: #f0f2f5;
     margin: 0;
+    padding: 20px;
 }
 
 .container {
-    background-color: white;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    text-align: center;
-    width: 100%;
-    max-width: 400px;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-#btn-terminei {
-    background-color: #4CAF50;
+h1 { color: #1a73e8; text-align: center; }
+
+.layout-principal {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.painel-lateral {
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.painel-calendario {
+    flex: 1;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card.destaque {
+    border: 2px solid #1a73e8;
+    background-color: #e8f0fe;
+}
+
+input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #1a73e8;
     color: white;
     border: none;
-    padding: 15px 30px;
-    font-size: 18px;
-    border-radius: 5px;
-    cursor: pointer;
-    margin: 20px 0;
-    width: 100%;
-    transition: background-color 0.3s;
-}
-
-#btn-terminei:hover {
-    background-color: #45a049;
-}
-
-.escondido {
-    display: none;
-}
-
-ul {
-    list-style-type: none;
-    padding: 0;
-}
-
-li {
-    background: #e9ecef;
-    margin: 10px 0;
     padding: 10px;
-    border-radius: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    font-weight: bold;
 }
+
+button:hover { background-color: #1557b0; }
+
+#btn-terminei { background-color: #34a853; font-size: 16px; padding: 15px; }
+#btn-terminei:hover { background-color: #2b8c45; }
+
+.escondido { display: none; }
+.lista-simples { list-style: none; padding: 0; margin-top: 10px; }
+.lista-simples li { background: #f8f9fa; padding: 8px; margin-bottom: 5px; border-radius: 4px; border-left: 3px solid #1a73e8; font-size: 14px;}
+
+/* Estilo para garantir que o calendário tenha um bom tamanho */
+#calendar { height: 600px; }
