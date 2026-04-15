@@ -3,26 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Otimizador de Tempo</title>
+    <title>Agenda Inteligente</title>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Meu Tempo Livre</h1>
+        <h1>Minha Agenda</h1>
         
-        <div class="status-panel">
-            <p>Próximo compromisso: <strong id="proximo-compromisso">16:00 - Reunião</strong></p>
-        </div>
+        <div class="layout-principal">
+            <div class="painel-lateral">
+                <div class="card">
+                    <h3>Novo Compromisso (Fixo)</h3>
+                    <input type="text" id="nome-compromisso" placeholder="Ex: Aula de Mecânica">
+                    <input type="time" id="hora-compromisso">
+                    <button onclick="adicionarCompromisso()">Agendar</button>
+                </div>
 
-        <button id="btn-terminei">Terminei agora!</button>
+                <div class="card">
+                    <h3>Nova Tarefa (Flexível)</h3>
+                    <input type="text" id="nome-tarefa" placeholder="Ex: Estudar ICE">
+                    <input type="number" id="tempo-tarefa" placeholder="Tempo (minutos)">
+                    <button onclick="adicionarTarefa()">Salvar Tarefa</button>
+                    
+                    <ul id="lista-tarefas-cadastradas" class="lista-simples"></ul>
+                </div>
 
-        <div id="area-sugestoes" class="escondido">
-            <h2>Sugestões para o seu tempo livre (<span id="tempo-disponivel">0</span> min):</h2>
-            <ul id="lista-tarefas">
-                </ul>
+                <div class="card destaque">
+                    <button id="btn-terminei">Terminei a tarefa atual!</button>
+                    <div id="area-sugestoes" class="escondido">
+                        <h4>Tempo Livre: <span id="tempo-disponivel">0</span> min</h4>
+                        <p>Sugestões:</p>
+                        <ul id="lista-tarefas-sugeridas" class="lista-simples"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="painel-calendario">
+                <div id="calendar"></div>
+            </div>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
